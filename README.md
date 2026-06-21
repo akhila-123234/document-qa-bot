@@ -38,12 +38,11 @@ The system extracts text from documents, splits the text into chunks, generates 
 The application follows a Retrieval-Augmented Generation (RAG) pipeline:
 
 1. Document Ingestion
-2. Text Extraction
-3. Text Chunking
-4. Embedding Generation
-5. Vector Storage using ChromaDB
-6. Similarity Search Retrieval
-7. Answer Generation using TinyLlama
+2. Text Chunking
+3. Embedding Generation
+4. Vector Storage using ChromaDB
+5. Similarity Search Retrieval
+6. Answer Generation using TinyLlama
 
 Pipeline Flow:
 
