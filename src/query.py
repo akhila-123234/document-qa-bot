@@ -2,6 +2,8 @@ import chromadb
 import ollama
 from sentence_transformers import SentenceTransformer
 
+print("Loading embedding model...")
+
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 client = chromadb.PersistentClient(path="db")
@@ -11,12 +13,27 @@ collection = client.get_collection("documents")
 
 def ask_question(question):
 
+    # Create query embedding
     query_embedding = model.encode(question).tolist()
 
+    # Retrieve relevant chunks
     results = collection.query(
         query_embeddings=[query_embedding],
-        n_results=5
+        n_results=5,
+        include=["documents", "metadatas", "distances"]
     )
+
+    # Similarity check
+    best_distance = results["distances"][0][0]
+
+    print(f"\nBest Distance: {best_distance}")
+
+    # Threshold
+    if best_distance > 1.2:
+        return (
+            "I could not find the answer in the provided documents.\n\n"
+            "Sources Used: None"
+        )
 
     contexts = []
 
@@ -36,14 +53,16 @@ Page: {meta['page']}
     context = "\n\n".join(contexts)
 
     prompt = f"""
-You are a document QA assistant.
+You are a document question answering assistant.
 
-Use ONLY the context below.
+Answer ONLY using the information provided in the context.
 
-If the answer is not present in the context,
-reply exactly:
+If the answer is not present in the context, reply exactly:
 
-I cannot find the answer in the provided documents.
+I could not find the answer in the provided documents.
+
+Do not use your own knowledge.
+Do not make up information.
 
 Context:
 {context}
@@ -66,7 +85,20 @@ Answer:
 
     answer = response["message"]["content"]
 
-    return answer, results["metadatas"][0]
+    sources = []
+
+    for meta in results["metadatas"][0]:
+        source_text = (
+            f"{meta['source']} (Page {meta['page']})"
+        )
+
+        if source_text not in sources:
+            sources.append(source_text)
+
+    answer += "\n\nSources Used:\n\n"
+    answer += "\n".join(sources)
+
+    return answer
 
 
 while True:
@@ -76,14 +108,7 @@ while True:
     if q.lower() == "exit":
         break
 
-    answer, sources = ask_question(q)
+    answer = ask_question(q)
 
     print("\nAnswer:\n")
     print(answer)
-
-    print("\nSources Used:\n")
-
-    for source in sources:
-        print(
-            f"{source['source']} (Page {source['page']})"
-        )
